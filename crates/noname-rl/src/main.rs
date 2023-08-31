@@ -1,14 +1,18 @@
 use std::os::windows::process;
 
-use bevy::{input::common_conditions::input_toggle_active, prelude::*, window::WindowResolution};
+use bevy::{
+    input::common_conditions::{input_pressed, input_toggle_active},
+    prelude::*,
+    window::WindowResolution,
+};
 use bevy_asset_loader::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_prototype_debug_lines::*;
 use bevy_prototype_lyon::prelude::*;
 use bevy_tweening::{lens::*, *};
-use events::{IntentionEndEvent, TurnEndEvent};
-use intentions::process_move_intention;
+use events::{IntentionEndEvent, TileInfoEvent, TurnEndEvent};
+use intentions::{process_attack_intention, process_move_intention};
 use leafwing_input_manager::prelude::*;
 use noise::*;
 
@@ -91,6 +95,7 @@ fn main() {
         // events:
         .add_event::<TurnEndEvent>()
         .add_event::<IntentionEndEvent>()
+        .add_event::<TileInfoEvent>()
         .add_plugins(DebugLinesPlugin::default())
         .add_plugins(ShapePlugin)
         .add_loading_state(
@@ -116,6 +121,7 @@ fn main() {
                 )
                     .chain(),
                 apply_deferred,
+                spawn_monster,
                 setup_input_handler.after(setup_player),
             )
                 .chain(),
@@ -134,7 +140,10 @@ fn main() {
                 camera_follow,
                 apply_deferred,
                 update_visibile_tiles,
+                apply_deferred,
                 process_move_intention,
+                process_attack_intention,
+                my_cursor_system.run_if(input_pressed(MouseButton::Right)),
                 apply_deferred,
             )
                 .chain(),
@@ -147,6 +156,7 @@ fn main() {
                 game_ui_player_position_update,
                 game_ui_interaction,
                 move_action_tween_end,
+                ui_update_on_query_tile_event,
             ),
         )
         .add_plugins(TweeningPlugin)

@@ -4,8 +4,9 @@ use crate::{
     bresenham_line,
     resources::RLRandomGenerator,
     room::{self, Room},
-    GameState, MyAssets, Player, PlayerBundle, RLAction, TileKind, TileMapEntityLayer,
-    TileMapLayer0, TileMapVisibilityLayer, VisitedTiles, WalkingAudioEffect, Wall,
+    FovOccluder, GameState, MyAssets, NeedsFovUpdate, Player, PlayerBundle, RLAction, StatsBundle,
+    TileKind, TileMapEntityLayer, TileMapLayer0, TileMapVisibilityLayer, VisitedTiles,
+    WalkingAudioEffect, Wall, WallBundle,
 };
 use bevy::{prelude::*, render::camera::Viewport, transform::commands, ui::camera_config};
 use bevy_ecs_tilemap::prelude::*;
@@ -58,6 +59,8 @@ pub fn setup_player(assets: Res<MyAssets>, mut commands: Commands) {
             input_map,
             ..Default::default()
         },
+        NeedsFovUpdate,
+        StatsBundle::default(),
     ));
 }
 
@@ -147,10 +150,10 @@ pub fn map_noise(
             let tile_pos = TilePos { x, y };
             let tile_entity = tile_storage.get(&tile_pos).unwrap();
 
-            let value = dbg!(perlin_noise.get([
+            let value = perlin_noise.get([
                 (x as f32 / map_size.x as f32) as f64,
-                (y as f32 / map_size.y as f32) as f64
-            ]) as f32);
+                (y as f32 / map_size.y as f32) as f64,
+            ]) as f32;
 
             if value > 0. {
                 commands.entity(tile_entity).insert((TileTextureIndex(205)));
@@ -196,7 +199,7 @@ pub fn map_room_generator(
             if let Some(tile_entity) = tile_storage.checked_get(&tile_pos) {
                 commands
                     .entity(tile_entity)
-                    .insert((Wall, TileTextureIndex(650)));
+                    .insert((WallBundle::default(), TileTextureIndex(650)));
             }
         }
 
@@ -206,7 +209,8 @@ pub fn map_room_generator(
                 commands
                     .entity(tile_entity)
                     .insert((TileKind::Floor, TileTextureIndex(4)))
-                    .remove::<Wall>();
+                    .remove::<Wall>()
+                    .remove::<FovOccluder>();
             }
         }
     }
@@ -237,7 +241,8 @@ pub fn map_room_generator(
             commands
                 .entity(tile_entity)
                 .insert((TileKind::Floor, TileTextureIndex(54)))
-                .remove::<Wall>();
+                .remove::<Wall>()
+                .remove::<FovOccluder>();
         }
     }
 
@@ -281,7 +286,7 @@ pub fn map_setup(
     let texture_handle: Handle<Image> = my_assets.player.clone();
     let visibility_image_handle = my_assets.visibility_image.clone();
 
-    let map_size = TilemapSize { x: 32, y: 32 };
+    let map_size = TilemapSize { x: 320, y: 320 };
 
     // let viewport_size = camera
     //     .clone()
@@ -311,7 +316,7 @@ pub fn map_setup(
         if rng.gen::<f32>() > 0.7 {
             commands
                 .entity(c.unwrap())
-                .insert((Wall, TileTextureIndex(35)));
+                .insert((WallBundle::default(), TileTextureIndex(35)));
         } else {
             // commands.entity(c.unwrap()).insert(TileKind::Floor);
         }
@@ -331,45 +336,45 @@ pub fn map_setup(
         TileMapLayer0,
     ));
 
-    // Layer 2
-    let mut tile_storage = TileStorage::empty(map_size);
-    let tilemap_entity = commands.spawn_empty().id();
+    // // Layer 2
+    // let mut tile_storage = TileStorage::empty(map_size);
+    // let tilemap_entity = commands.spawn_empty().id();
 
-    // fill_tilemap(
-    //     TileTextureIndex(2),
-    //     map_size,
+    // // fill_tilemap(
+    // //     TileTextureIndex(2),
+    // //     map_size,
+    // //     TilemapId(tilemap_entity),
+    // //     &mut commands,
+    // //     &mut tile_storage,
+    // // );
+    // let start = TilePos::new(0, 0);
+    // let end = TilePos::new(7, 3);
+    // // let tilemap_id = TilemapId(tilemap_entity);
+    // let positions = bresenham_line(
+    //     IVec2::new(start.x as i32, start.y as i32),
+    //     IVec2::new(end.x as i32, end.y as i32),
+    //     &map_size,
+    // );
+
+    // fill_positions(
+    //     TileTextureIndex(34),
+    //     positions,
     //     TilemapId(tilemap_entity),
     //     &mut commands,
     //     &mut tile_storage,
     // );
-    let start = TilePos::new(0, 0);
-    let end = TilePos::new(7, 3);
-    // let tilemap_id = TilemapId(tilemap_entity);
-    let positions = bresenham_line(
-        IVec2::new(start.x as i32, start.y as i32),
-        IVec2::new(end.x as i32, end.y as i32),
-        &map_size,
-    );
 
-    fill_positions(
-        TileTextureIndex(34),
-        positions,
-        TilemapId(tilemap_entity),
-        &mut commands,
-        &mut tile_storage,
-    );
-
-    commands.entity(tilemap_entity).insert((TilemapBundle {
-        grid_size,
-        map_type,
-        size: map_size,
-        storage: tile_storage,
-        texture: TilemapTexture::Single(texture_handle.clone()),
-        tile_size: TilemapTileSize { x: 16.0, y: 16.0 },
-        // transform: get_tilemap_center_transform(&map_size, &grid_size, &map_type, 1.0)
-        //     * Transform::from_xyz(0.0, 0.0, 0.0),
-        ..Default::default()
-    },));
+    // commands.entity(tilemap_entity).insert((TilemapBundle {
+    //     grid_size,
+    //     map_type,
+    //     size: map_size,
+    //     storage: tile_storage,
+    //     texture: TilemapTexture::Single(texture_handle.clone()),
+    //     tile_size: TilemapTileSize { x: 16.0, y: 16.0 },
+    //     // transform: get_tilemap_center_transform(&map_size, &grid_size, &map_type, 1.0)
+    //     //     * Transform::from_xyz(0.0, 0.0, 0.0),
+    //     ..Default::default()
+    // },));
 
     // Visibiility Layer
     let mut tile_storage = TileStorage::empty(map_size);
@@ -399,8 +404,8 @@ pub fn map_setup(
     ));
 
     // Visibiility Layer
-    let mut entity_tile_storage = TileStorage::empty(map_size);
-    let tilemap_entity = commands.spawn_empty().id();
+    // let mut entity_tile_storage = TileStorage::empty(map_size);
+    // let tilemap_entity = commands.spawn_empty().id();
 
     // fill_tilemap(
     //     TileTextureIndex(0),

@@ -5,6 +5,25 @@ use leafwing_input_manager::Actionlike;
 #[derive(Component, Default, Debug)]
 pub struct WalkingAudioEffect {}
 
+// stats components
+
+#[derive(Component, Default, Debug)]
+pub struct Health {
+    pub current: i32,
+    pub max: i32,
+}
+
+#[derive(Component, Default, Debug)]
+pub struct Attack {
+    pub damage: i32,
+}
+
+#[derive(Bundle, Default, Debug)]
+pub struct StatsBundle {
+    pub health: Health,
+    pub attack: Attack,
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Component)]
 pub struct Player {
     pub visited_tiles: Vec<TilePos>,
@@ -48,7 +67,19 @@ pub enum TileKind {
 }
 
 #[derive(Component, Default)]
+pub struct FovOccluder;
+
+#[derive(Component, Default)]
 pub struct Wall;
+
+#[derive(Bundle, Default)]
+pub struct WallBundle {
+    pub wall: Wall,
+    pub fov_occluder: FovOccluder,
+}
+
+#[derive(Component, Default)]
+pub struct NeedsFovUpdate;
 
 // #[derive(Component, Default)]
 // pub struct TileBundle {
@@ -86,6 +117,14 @@ pub struct IntentionSourceId(pub Entity);
 
 #[derive(Component, Default)]
 pub struct TimeUIField {}
+
+#[derive(Component, Default)]
+pub struct TileInfoUI {}
+
+#[derive(Component, Default)]
+pub struct Name {
+    pub name: String,
+}
 
 #[derive(Component, Default)]
 pub struct PlayerPositionUILabel {}

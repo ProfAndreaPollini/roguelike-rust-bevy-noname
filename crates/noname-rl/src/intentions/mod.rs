@@ -28,9 +28,25 @@ pub trait IntentionResolver {
 
 #[derive(Debug, Clone, PartialEq, Component)]
 pub struct AttackIntention {
-    pub target: EntityRef,
+    pub target: IntentionSourceRef,
     pub target_pos: TilePos,
-    pub source: EntityRef,
+    pub source: IntentionSourceRef,
+}
+
+pub fn process_attack_intention(
+    entities_q: Query<(Entity, &AttackIntention)>,
+    mut commands: Commands,
+    world: &World,
+) {
+    for (entity, intention) in entities_q.iter() {
+        let source_entity = intention.source.0;
+        let target_entity = intention.target.0;
+        info!(
+            "process_attack_intention [{:?}]: {:?} attacks {:?} at {:?}",
+            intention, source_entity, target_entity, intention.target_pos
+        );
+        commands.entity(entity).despawn_recursive();
+    }
 }
 
 pub fn process_move_intention(

@@ -5,7 +5,10 @@ use bevy_ecs_tilemap::{
 };
 use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween, TweenCompleted};
 
-use crate::{algorithms::tile_pos_to_world_pos, events::IntentionEndEvent, TileMapEntityLayer};
+use crate::{
+    algorithms::tile_pos_to_world_pos, events::IntentionEndEvent, NeedsFovUpdate,
+    TileMapEntityLayer,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MoveAction {
@@ -16,7 +19,7 @@ pub struct MoveAction {
 
 impl Command for MoveAction {
     fn apply(self, world: &mut World) {
-        info!("MoveAction: {:?}", self);
+        // info!("MoveAction: {:?}", self);
 
         // let mut pos: Option<Vec2> = None;
         // {
@@ -53,10 +56,10 @@ impl Command for MoveAction {
                 self.target_position.z,
             );
 
-            println!("MoveAction: {:?} => {:?}", old_pos, new_pos);
+            // println!("MoveAction: {:?} => {:?}", old_pos, new_pos);
             let tween = Tween::new(
                 EaseFunction::QuadraticInOut,
-                std::time::Duration::from_millis(200),
+                std::time::Duration::from_millis(250),
                 TransformPositionLens {
                     start: old_pos,
                     end: new_pos,
@@ -76,6 +79,9 @@ impl Command for MoveAction {
             let mut tile_pos = world.get_mut::<TilePos>(self.entity).unwrap();
             tile_pos.x = self.target_tile.x;
             tile_pos.y = self.target_tile.y;
+        }
+        {
+            world.entity_mut(self.entity).insert(NeedsFovUpdate);
         }
     }
 }

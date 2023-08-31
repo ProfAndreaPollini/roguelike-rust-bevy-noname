@@ -3,8 +3,10 @@ use bevy_ecs_tilemap::tiles::TilePos;
 use bevy_inspector_egui::egui::Margin;
 
 use crate::{
-    events::TurnEndEvent, resources::RLTimeSystem, ButtonStatus, GameUiCamera, MyAssets,
-    MyGameCamera, Player, PlayerPositionUILabel, TimeUIButton, TimeUIField,
+    events::{TileInfoEvent, TurnEndEvent},
+    resources::RLTimeSystem,
+    ButtonStatus, GameUiCamera, Monster, MyAssets, MyGameCamera, Player, PlayerPositionUILabel,
+    TileInfoUI, TimeUIButton, TimeUIField,
 };
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
@@ -156,6 +158,27 @@ pub fn game_ui_setup(mut commands: Commands, assets: Res<MyAssets>) {
                                 ..Default::default()
                             },));
                         });
+                    builder.spawn((
+                        TextBundle::from_sections([
+                            TextSection::new(
+                                "player position: 0, 0",
+                                TextStyle {
+                                    font: assets.ui_font.clone(),
+                                    font_size: 22.0,
+                                    color: data_color,
+                                },
+                            ),
+                            TextSection::new(
+                                "Hello, ",
+                                TextStyle {
+                                    font: assets.ui_font.clone(),
+                                    font_size: 22.0,
+                                    color: data_color,
+                                },
+                            ),
+                        ]),
+                        TileInfoUI::default(),
+                    ));
                 });
             // builder.spawn(NodeBundle {
             //     style: Style {
@@ -245,6 +268,47 @@ pub fn game_ui_update(
     //         .get_single_mut()
     //         .map(|transform| transform.translation.truncate())
     // );
+}
+
+pub fn ui_update_on_query_tile_event(
+    mut tile_info_event: EventReader<TileInfoEvent>,
+    mut tile_info_ui: Query<&mut Text, With<TileInfoUI>>,
+    monsters_q: Query<(&TilePos, &Name), With<crate::Monster>>,
+    player_q: Query<(&TilePos), (With<Player>, Without<Monster>)>,
+) {
+    let mut tile_info_text = match tile_info_ui.get_single_mut() {
+        Ok(tile_info_text) => tile_info_text,
+        Err(_) => return,
+    };
+
+    for event in tile_info_event.iter() {
+        println!("TileInfoEvent: {:?}", event);
+        let tile = event.tile_pos;
+        let monsters_at_tile = monsters_q
+            .iter()
+            .filter(|(pos, _)| **pos == tile)
+            .collect::<Vec<_>>();
+        if !monsters_at_tile.is_empty() {
+            tile_info_text.sections[0].value = format!(
+                "monsters: {:?}",
+                monsters_at_tile
+                    .iter()
+                    .map(|(_, name)| format!("{:?}", name))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+
+        let player_at_tile = player_q
+            .iter()
+            .filter(|pos| **pos == tile)
+            .collect::<Vec<_>>();
+
+        if !player_at_tile.is_empty() {
+            tile_info_text.sections[0].value = format!("player: {:?}", player_at_tile);
+        }
+    }
+    tile_info_event.clear();
 }
 
 pub fn game_ui_player_position_update(
